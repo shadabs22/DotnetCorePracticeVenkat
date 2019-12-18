@@ -178,7 +178,7 @@ namespace WebApplication.Controllers
             return View();
         }
 
-        [AllowAnonymous]
+        [AllowAnonymous] 
         [HttpPost]
         public IActionResult ExternalLogin(string provider, string returnUrl)
         {
