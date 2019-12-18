@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication.Models;
+using WebApplication.Security;
 using WebApplication.ViewModels;
 
 namespace WebApplication.Controllers
@@ -16,25 +18,42 @@ namespace WebApplication.Controllers
         private IEmployeeRepository _employeeRepository;
         private readonly IHostingEnvironment hostingEnvironment;
 
+        // It is through IDataProtector interface Protect and Unprotect methods,
+        // we encrypt and decrypt respectively
+        private readonly IDataProtector protector;
+
         public HomeController(IEmployeeRepository employeeRepository,
-                              IHostingEnvironment hostingEnvironment)
+                              IHostingEnvironment hostingEnvironment,
+                              IDataProtectionProvider dataProtectionProvider,
+                              DataProtectionPurposeStrings dataProtectionPurposeStrings)
         {
             _employeeRepository = employeeRepository;
             this.hostingEnvironment = hostingEnvironment;
+            // Pass the purpose string as a parameter
+            this.protector = dataProtectionProvider.CreateProtector(
+                dataProtectionPurposeStrings.EmployeeIdRouteValue);
         }
 
         public ViewResult Index()
         {
-            // retrieve all the employees
-            var model = _employeeRepository.GetAllEmployee();
-            // Pass the list of employees to the view
+            var model = _employeeRepository.GetAllEmployee()
+                            .Select(e =>
+                            {
+                                // Encrypt the ID value and store in EncryptedId property
+                                e.EncryptedId = protector.Protect(e.Id.ToString());
+                                return e;
+                            });
             return View(model);
         }
 
-        public ViewResult Details(int id)
+        public ViewResult Details(string id)
         {
-            throw new Exception("Error in detail view page");
-            Employee employee = _employeeRepository.GetEmployee(id);
+            // throw new Exception("Error in detail view page");
+            // Decrypt the employee id using Unprotect method
+            string decryptedId = protector.Unprotect(id);
+            int decryptedIntId = Convert.ToInt32(decryptedId);
+
+            Employee employee = _employeeRepository.GetEmployee(decryptedIntId);
 
             if (employee == null)
             {
@@ -98,14 +117,19 @@ namespace WebApplication.Controllers
         }
 
         [HttpGet]
-        public ViewResult Edit(int id)
+        public ViewResult Edit(string id)
         {
-            Employee employee = _employeeRepository.GetEmployee(id);
+            // throw new Exception("Error in detail view page");
+            // Decrypt the employee id using Unprotect method
+            string decryptedId = protector.Unprotect(id);
+            int decryptedIntId = Convert.ToInt32(decryptedId);
+
+            Employee employee = _employeeRepository.GetEmployee(decryptedIntId);
 
             if (employee == null)
             {
                 Response.StatusCode = 404;
-                return View("EmployeeNotFound", id);
+                return View("EmployeeNotFound", decryptedIntId);
             }
 
             EmployeeEditViewModel employeeEditViewModel = new EmployeeEditViewModel
@@ -114,7 +138,8 @@ namespace WebApplication.Controllers
                 Name = employee.Name,
                 Email = employee.Email,
                 Department = employee.Department,
-                ExistingPhotoPath = employee.PhotoPath
+                ExistingPhotoPath = employee.PhotoPath,
+                EncryptedId = id
             };
             return View(employeeEditViewModel);
         }
@@ -124,9 +149,10 @@ namespace WebApplication.Controllers
         [HttpPost]
         public IActionResult Edit(EmployeeEditViewModel model)
         {
+            model.Id = Convert.ToInt32(protector.Unprotect(model.EncryptedId));
             // Check if the provided data is valid, if not rerender the edit view
             // so the user can correct and resubmit the edit form
-            if (ModelState.IsValid)
+            // if (ModelState.IsValid)
             {
                 // Retrieve the employee being edited from the database
                 Employee employee = _employeeRepository.GetEmployee(model.Id);

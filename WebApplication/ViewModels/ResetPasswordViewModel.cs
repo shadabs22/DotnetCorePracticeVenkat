@@ -1,20 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using WebApplication.Utilities;
 
 namespace WebApplication.ViewModels
 {
-    public class RegisterViewModel
+    public class ResetPasswordViewModel
     {
         [Required]
         [EmailAddress]
-        [Remote(action: "IsEmailInUse", controller: "Account")]
-        //[ValidEmailDomain(allowedDomain: "abcd.com",
-        //ErrorMessage = "Email domain must be pragimtech.com")]
         public string Email { get; set; }
 
         [Required]
@@ -24,10 +19,9 @@ namespace WebApplication.ViewModels
         [DataType(DataType.Password)]
         [Display(Name = "Confirm password")]
         [Compare("Password",
-            ErrorMessage = "Password and confirmation password do not match.")]
+            ErrorMessage = "Password and Confirm Password must match")]
         public string ConfirmPassword { get; set; }
 
-        public string City { get; set; }
-
+        public string Token { get; set; }
     }
 }
